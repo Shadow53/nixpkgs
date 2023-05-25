@@ -40,12 +40,16 @@ let
     checkPhase = "${pkgs.php81}/bin/php --syntax-check $target";
   };
 
+  phpEscape = v: "'${escape ["'" "\n" "\r" "\t"] (toString v)}'";
+
   mkPhpValue = v: let
     isHasAttr = s: isAttrs v && hasAttr s v;
   in
-    if isString v then escapeShellArg v
+    if isString v then phpEscape v
     # NOTE: If any value contains a , (comma) this will not get escaped
-    else if isList v && any lib.strings.isCoercibleToString v then escapeShellArg (concatMapStringsSep "," toString v)
+    else
+      if isList v && any lib.strings.isCoercibleToString v
+      then "array(${ concatMapStringsSep ", " phpEscape v })"
     else if isInt v then toString v
     else if isBool v then toString (if v then 1 else 0)
     else if isHasAttr "_file" then "trim(file_get_contents(${lib.escapeShellArg v._file}))"
